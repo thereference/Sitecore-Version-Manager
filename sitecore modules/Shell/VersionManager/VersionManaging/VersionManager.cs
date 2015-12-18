@@ -4,6 +4,8 @@
 // </copyright>
 //-------------------------------------------------------------------------------------------------
 
+using Sitecore.SecurityModel;
+
 namespace Sitecore.VersionManager
 {
     using System;
@@ -120,22 +122,26 @@ namespace Sitecore.VersionManager
 
             int maximum = Settings.GetIntSetting("VersionManager.NumberOfVersionsToKeep", 5);
             bool isSerialize = Settings.GetBoolSetting("VersionManager.ArchiveDeletedVersions", true);
-            int current = item.Versions.Count;
-            if (current - maximum > 0)
+            bool usingSecurityDisabler = Settings.GetBoolSetting("VersionManager.UseSecurityDisablerToRemoveVersions", false);
+
+            using (usingSecurityDisabler ? new SecurityDisabler() : null)
             {
-                Item[] versions = item.Versions.GetVersions(false);
-                if (isSerialize)
+                int current = item.Versions.Count;
+                if (current - maximum > 0)
                 {
-                    SerializeItemVersions(item, versions[0].Version.Number, versions[versions.Length - 1].Version.Number);
-                }
+                    Item[] versions = item.Versions.GetVersions(false);
+                    if (isSerialize)
+                    {
+                        SerializeItemVersions(item, versions[0].Version.Number, versions[versions.Length - 1].Version.Number);
+                    }
 
-                for (int i = 0; i < current - maximum; i++)
-                {
-                    versions[i].Versions.RemoveVersion();
-                    Log.Info("Version Manager: Removed version {0}; Item: {1}; Language: {2}".FormatWith(i, item.Paths.Path, item.Language.ToString()), "DeleteItemVersions");
+                    for (int i = 0; i < current - maximum; i++)
+                    {
+                        versions[i].Versions.RemoveVersion();
+                        Log.Info("Version Manager: Removed version {0}; Item: {1}; Language: {2}".FormatWith(i, item.Paths.Path, item.Language.ToString()), "DeleteItemVersions");
+                    }
+                    sourceList.Remove(item.ID.ToString() + "^" + item.Language.ToString());
                 }
-
-                sourceList.Remove(item.ID.ToString() + "^" + item.Language.ToString());
             }
         }
 
